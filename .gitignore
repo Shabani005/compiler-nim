@@ -1,1 +1,4 @@
 nim_compiler/submodule.nim
+main.py
+nim_compiler.out
+interpreter

@@ -1,4 +1,4 @@
-# there must be a way to make it more plug and play but this is good enough for now
+import tables
 
 type 
     TokenType* = enum
@@ -14,64 +14,88 @@ type
         RSQUARED,
         NUMBER, 
         EOF,
-        DIVIDE
+        DIVIDE,
+        IDENTIFIER,
+        COMMA,
+        STRING,
+        FOR,
+        IN,
+        INDENTATIONCOLON
 
     Token* = object
         kind*: TokenType
         lexeme*: string
+
+
+const keywords = {
+  "for": FOR,
+  "in": IN
+}.toTable
+
+const singleCharTokens = {
+  '+': PLUS,
+  '-': MINUS,
+  '*': STAR,
+  '^': EXPONENT,
+  '(': LBRACKET,
+  ')': RBRACKET,
+  '{': LCURLED,
+  '}': RCURLED,
+  '[': LSQUARED,
+  ']': RSQUARED,
+  '/': DIVIDE,
+  ',': COMMA,
+  ':': INDENTATIONCOLON
+}.toTable
 
 proc tokenize*(input: string): seq[Token] =
   var i = 0
   var tokens: seq[Token] = @[]
   while i < input.len:
     case input[i]
-    of ' ':
-      inc i
-    of '+':
-      tokens.add(Token(kind: PLUS, lexeme: "+"))
-      inc i
-    of '-':
-      tokens.add(Token(kind: MINUS, lexeme: "-"))
-      inc i
-    of '*':
-      tokens.add(Token(kind: STAR, lexeme: "*"))
-      inc i
-    of '^':
-      tokens.add(Token(kind: EXPONENT, lexeme: "^"))
-      inc i
-    of '(':
-      tokens.add(Token(kind: LBRACKET, lexeme: "("))
-      inc i
-    of ')':
-      tokens.add(Token(kind: RBRACKET, lexeme: ")"))
-      inc i
-    of '{':
-      tokens.add(Token(kind: LCURLED, lexeme: "{"))
-      inc i
-    of '}':
-      tokens.add(Token(kind: RCURLED, lexeme: "}"))
-      inc i
-    of '[':
-      tokens.add(Token(kind: LSQUARED, lexeme: "["))
-      inc i
-    of ']':
-      tokens.add(Token(kind: RSQUARED, lexeme: "]"))
-      inc i
-    of '/':
-        tokens.add(Token(kind: DIVIDE, lexeme: "/"))
-        inc i 
+    of 'a'..'z', 'A'..'Z', '_':
+      var start = i
+      while i < input.len and (input[i] in {'a'..'z', 'A'..'Z', '0'..'9', '_'}):
+        inc i
+      let word = input[start ..< i]
+      if word in keywords:
+        tokens.add(Token(kind: keywords[word], lexeme: word))
+      else:
+        tokens.add(Token(kind: IDENTIFIER, lexeme: word))
     of '0'..'9':
       var start = i
-      while i < input.len and input[i] in {'0'..'9'}:
+      var hasDot = false
+      while i < input.len and (input[i] in {'0'..'9'} or (input[i] == '.' and not hasDot)):
+        if input[i] == '.':
+          hasDot = true
         inc i
       tokens.add(Token(kind: NUMBER, lexeme: input[start ..< i]))
-    else:
-      echo "Unknown character: ", input[i]
+    of '"':
+      var start = i + 1
       inc i
+      while i < input.len and input[i] != '"':
+        inc i
+      if i >= input.len:
+        raise newException(ValueError, "Unterminated string literal")
+      tokens.add(Token(kind: STRING, lexeme: input[start ..< i]))
+      inc i
+    of '\'':
+      var start = i + 1
+      inc i
+      while i < input.len and input[i] != '\'':
+        inc i
+      if i >= input.len:
+        raise newException(ValueError, "Unterminated string literal")
+      tokens.add(Token(kind: STRING, lexeme: input[start ..< i]))
+      inc i 
+    of ' ', '\n', '\r', '\t':
+      inc i
+    else:
+      if input[i] in singleCharTokens:
+        tokens.add(Token(kind: singleCharTokens[input[i]], lexeme: $input[i]))
+        inc i
+      else:
+        echo "Unknown character: ", input[i]
+        inc i
   tokens.add(Token(kind: EOF, lexeme: ""))
   return tokens
-
-
-let tokens = tokenize("42 + (7 - 3) * 2/5")
-for t in tokens:
-  echo t.kind, " : ", t.lexeme
