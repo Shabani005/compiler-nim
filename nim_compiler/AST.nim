@@ -3,7 +3,7 @@ import strutils
 import math
 
 type
-  ASTNodeKind = enum
+  ASTNodeKind* = enum
     nkNumber,
     nkBinaryOperation
 
@@ -15,18 +15,18 @@ type
       op*: TokenType
       left*, right*: ASTNode
 
-  TokenStream = object
-    tokens: seq[Token]
-    pos: int
+  TokenStream* = object
+    tokens*: seq[Token]
+    pos*: int
 
-proc current(ts: TokenStream): Token =
+proc current*(ts: TokenStream): Token =
   ts.tokens[ts.pos]
 
-proc advance(ts: var TokenStream) =
+proc advance*(ts: var TokenStream) =
   if ts.pos < ts.tokens.len - 1:
     inc ts.pos
 
-proc parseNumber(ts: var TokenStream): ASTNode =
+proc parseNumber*(ts: var TokenStream): ASTNode =
   let tok = ts.current()
   if tok.kind == NUMBER:
     ts.advance()
@@ -34,7 +34,7 @@ proc parseNumber(ts: var TokenStream): ASTNode =
   else:
     raise newException(ValueError, "Expected a number")
 
-proc parseExpr(ts: var TokenStream): ASTNode
+proc parseExpr*(ts: var TokenStream): ASTNode
 # Parse factor: numbers and parenthesized expressions
 proc parseFactor(ts: var TokenStream): ASTNode =
   let tok = ts.current()
@@ -51,7 +51,7 @@ proc parseFactor(ts: var TokenStream): ASTNode =
     raise newException(ValueError, "Expected a number or '('")
 
 # Parse exponentiation
-proc parseExponent(ts: var TokenStream): ASTNode =
+proc parseExponent*(ts: var TokenStream): ASTNode =
   var node = parseFactor(ts)
   if ts.current().kind == EXPONENT:
     let op = ts.current().kind
@@ -61,7 +61,7 @@ proc parseExponent(ts: var TokenStream): ASTNode =
   return node
 
 # Parse term: *, /
-proc parseTerm(ts: var TokenStream): ASTNode =
+proc parseTerm*(ts: var TokenStream): ASTNode =
   var node = parseExponent(ts)
   while ts.current().kind in {STAR, DIVIDE}:
     let op = ts.current().kind
@@ -71,7 +71,7 @@ proc parseTerm(ts: var TokenStream): ASTNode =
   return node
 
 # Parse expression: +, -
-proc parseExpr(ts: var TokenStream): ASTNode =
+proc parseExpr*(ts: var TokenStream): ASTNode =
   var node = parseTerm(ts)
   while ts.current().kind in {PLUS, MINUS}:
     let op = ts.current().kind
@@ -81,7 +81,7 @@ proc parseExpr(ts: var TokenStream): ASTNode =
   return node
 
 # Pretty-print the AST
-proc printAST(node: ASTNode, indent: int = 0) =
+proc printAST*(node: ASTNode, indent: int = 0) =
   let pad = "  ".repeat(indent)
   case node.kind
   of nkNumber:
@@ -92,7 +92,7 @@ proc printAST(node: ASTNode, indent: int = 0) =
     printAST(node.right, indent + 1)
 
 
-proc eval(node: ASTNode): float =
+proc eval*(node: ASTNode): float =
   case node.kind
   of nkNumber:
     return float(node.value)
@@ -112,12 +112,4 @@ proc eval(node: ASTNode): float =
       return pow(leftVal, rightVal)
     else:
       raise newException(ValueError, "Unknown operator in eval")
-    
-# Example usage
-when isMainModule:
-  let input = "2 + 3 * (4 - 1) ^ 2 / 5"
-  let tokens = tokenize(input)
-  var ts = TokenStream(tokens: tokens, pos: 0)
-  let ast = parseExpr(ts)
-  echo eval(ast)
   
