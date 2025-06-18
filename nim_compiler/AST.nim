@@ -34,8 +34,9 @@ proc parseNumber*(ts: var TokenStream): ASTNode =
   else:
     raise newException(ValueError, "Expected a number")
 
+# infer that this function exists at runtime, or the future
 proc parseExpr*(ts: var TokenStream): ASTNode
-# Parse factor: numbers and parenthesized expressions
+
 proc parseFactor(ts: var TokenStream): ASTNode =
   let tok = ts.current()
   if tok.kind == NUMBER:
@@ -50,7 +51,6 @@ proc parseFactor(ts: var TokenStream): ASTNode =
   else:
     raise newException(ValueError, "Expected a number or '('")
 
-# Parse exponentiation
 proc parseExponent*(ts: var TokenStream): ASTNode =
   var node = parseFactor(ts)
   if ts.current().kind == EXPONENT:
@@ -60,7 +60,6 @@ proc parseExponent*(ts: var TokenStream): ASTNode =
     node = ASTNode(kind: nkBinaryOperation, op: op, left: node, right: right)
   return node
 
-# Parse term: *, /
 proc parseTerm*(ts: var TokenStream): ASTNode =
   var node = parseExponent(ts)
   while ts.current().kind in {STAR, DIVIDE}:
@@ -70,7 +69,6 @@ proc parseTerm*(ts: var TokenStream): ASTNode =
     node = ASTNode(kind: nkBinaryOperation, op: op, left: node, right: right)
   return node
 
-# Parse expression: +, -
 proc parseExpr*(ts: var TokenStream): ASTNode =
   var node = parseTerm(ts)
   while ts.current().kind in {PLUS, MINUS}:
@@ -80,7 +78,6 @@ proc parseExpr*(ts: var TokenStream): ASTNode =
     node = ASTNode(kind: nkBinaryOperation, op: op, left: node, right: right)
   return node
 
-# Pretty-print the AST
 proc printAST*(node: ASTNode, indent: int = 0) =
   let pad = "  ".repeat(indent)
   case node.kind
