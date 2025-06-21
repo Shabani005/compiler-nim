@@ -1,5 +1,7 @@
 import tables
 
+# to add new tokens add to the TokenType enum, if it is a keyword (collection of tokens you add it to both the enum and the keyword constant), single character tokens are to be added to the singleCharTokens dict
+
 type 
     TokenType* = enum
         PLUS, 
@@ -20,7 +22,8 @@ type
         STRING,
         FOR,
         IN,
-        INDENTATIONCOLON
+        INDENTATIONCOLON,
+        WHILE
 
     Token* = object
         kind*: TokenType
@@ -29,7 +32,8 @@ type
 
 const keywords = {
   "for": FOR,
-  "in": IN
+  "in": IN,
+  "while": WHILE
 }.toTable
 
 const singleCharTokens = {

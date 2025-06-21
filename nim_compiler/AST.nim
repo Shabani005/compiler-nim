@@ -1,6 +1,8 @@
 import strutils, math, tables
 import tokenizer
 
+# after adding to TokenType enum and keywords dict add to ASTNodeKind enum and object (basically like a class in OOP languages)
+
 type
   ASTNodeKind* = enum
     nkNumber,
@@ -9,7 +11,8 @@ type
     nkIdentifier,
     nkBinaryOperation,
     nkFunctionCall,
-    nkForLoop
+    nkForLoop,
+    nkWhileLoop
 
   ASTNode* = ref object
     case kind*: ASTNodeKind
@@ -28,9 +31,12 @@ type
       funcName*: string
       args*: seq[ASTNode]
     of nkForLoop:
-      varName*: string
-      startExpr*, endExpr*: ASTNode
-      body*: ASTNode
+      fvarName*: string
+      fstartExpr*, fendExpr*: ASTNode
+      fbody*: ASTNode
+    of nkWhileLoop:
+      wcond*: ASTNode
+      wbody*: ASTNode
 
   TokenStream* = object
     tokens*: seq[Token]
@@ -54,6 +60,7 @@ proc parseNumber*(ts: var TokenStream): ASTNode =
 proc parseExpr*(ts: var TokenStream): ASTNode
 proc parseFunctionCall(ts: var TokenStream): ASTNode
 proc parseForLoop(ts: var TokenStream): ASTNode
+proc parseWhileLoop(ts: var TokenStream): ASTNode 
 
 proc parseFactor(ts: var TokenStream): ASTNode =
   let tok = ts.current()
@@ -78,6 +85,8 @@ proc parseFactor(ts: var TokenStream): ASTNode =
     return ASTNode(kind: nkString, strValue: tok.lexeme)
   elif tok.kind == FOR:
     return parseForLoop(ts)
+  elif tok.kind == WHILE:
+    return parseWhileLoop(ts)
   else:
     raise newException(ValueError, "Expected a number, identifier, 'for', or '('")
 
@@ -129,7 +138,7 @@ proc parseFunctionCall(ts: var TokenStream): ASTNode =
 
 proc parseForLoop(ts: var TokenStream): ASTNode =
   ts.advance() # skip 'for'
-  let varName = ts.current().lexeme
+  let fvarName = ts.current().lexeme
   ts.advance()
   if ts.current().kind != IN:
     raise newException(ValueError, "Expected 'in' after for variable")
@@ -140,19 +149,29 @@ proc parseForLoop(ts: var TokenStream): ASTNode =
   if ts.current().kind != LBRACKET:
     raise newException(ValueError, "Expected '(' after 'range'")
   ts.advance()
-  let startExpr = parseExpr(ts)
+  let fstartExpr = parseExpr(ts)
   if ts.current().kind != COMMA:
     raise newException(ValueError, "Expected ',' in range")
   ts.advance()
-  let endExpr = parseExpr(ts)
+  let fendExpr = parseExpr(ts)
   if ts.current().kind != RBRACKET:
     raise newException(ValueError, "Expected ')' after range")
   ts.advance()
   if ts.current().kind != INDENTATIONCOLON:
     raise newException(ValueError, "Expected ':' after for loop header")
   ts.advance()
-  let body = parseExpr(ts) 
-  return ASTNode(kind: nkForLoop, varName: varName, startExpr: startExpr, endExpr: endExpr, body: body)
+  let fbody = parseExpr(ts) 
+  return ASTNode(kind: nkForLoop, fvarName: fvarName, fstartExpr: fstartExpr, fendExpr: fendExpr, fbody: fbody)
+
+proc parseWhileLoop(ts: var TokenStream): ASTNode =
+  ts.advance() # skip 'while'
+  let cond = parseExpr(ts)
+  if ts.current().kind != INDENTATIONCOLON:
+    raise newException(ValueError, "Expected ':' after while condition")
+  ts.advance()
+  let body = parseExpr(ts) # or parseBlock(ts) if you support blocks
+  return ASTNode(kind: nkWhileLoop, wcond: cond, wbody: body)
+
 
 proc printAST*(node: ASTNode, indent: int = 0) =
   let pad = "  ".repeat(indent)
@@ -175,12 +194,18 @@ proc printAST*(node: ASTNode, indent: int = 0) =
       echo pad, "  Arg ", i, ":"
       printAST(arg, indent + 2)
   of nkForLoop:
-    echo pad, "ForLoop: var ", node.varName
+    echo pad, "ForLoop: var ", node.fvarName
     echo pad, "  Range:"
-    printAST(node.startExpr, indent + 2)
-    printAST(node.endExpr, indent + 2)
+    printAST(node.fstartExpr, indent + 2)
+    printAST(node.fendExpr, indent + 2)
     echo pad, "  Body:"
-    printAST(node.body, indent + 2)
+    printAST(node.fbody, indent + 2)
+  of nkWhileLoop:
+    echo pad, "WhileLoop:"
+    echo pad, "  Condition:"
+    printAST(node.wcond, indent + 2)
+    echo pad, "  Body:"
+    printAST(node.wbody, indent + 2)
 
 proc eval*(node: ASTNode, env: var Table[string, float]): float =
   case node.kind
@@ -236,9 +261,13 @@ proc eval*(node: ASTNode, env: var Table[string, float]): float =
     else:
       raise newException(ValueError, "Unknown function: " & node.funcName)
   of nkForLoop:
-    let startVal = int(eval(node.startExpr, env))
-    let endVal = int(eval(node.endExpr, env))
+    let startVal = int(eval(node.fstartExpr, env))
+    let endVal = int(eval(node.fendExpr, env))
     for i in startVal ..< endVal:
-      env[node.varName] = float(i)
-      discard eval(node.body, env)
+      env[node.fvarName] = float(i)
+      discard eval(node.fbody, env)
+    return 0.0
+  of nkWhileLoop:
+    while eval(node.wcond, env) != 0.0:
+      discard eval(node.wbody, env)
     return 0.0
